@@ -65,9 +65,9 @@ ATTESTATION_STATUS session_request_ocall(sgx_enclave_id_t src_enclave_id, sgx_en
 		case 2:
 			ret = Enclave2_session_request(dest_enclave_id, &status, src_enclave_id, dh_msg1, session_id);
 			break;
-		case 3:
-			ret = Enclave3_session_request(dest_enclave_id, &status, src_enclave_id, dh_msg1, session_id);
-			break;
+		// case 3:
+		// 	ret = Enclave3_session_request(dest_enclave_id, &status, src_enclave_id, dh_msg1, session_id);
+		// 	break;
 	}
 	if (ret == SGX_SUCCESS)
 		return (ATTESTATION_STATUS)status;
@@ -100,9 +100,9 @@ ATTESTATION_STATUS exchange_report_ocall(sgx_enclave_id_t src_enclave_id, sgx_en
 		case 2:
 			ret = Enclave2_exchange_report(dest_enclave_id, &status, src_enclave_id, dh_msg2, dh_msg3, session_id);
 			break;
-		case 3:
-			ret = Enclave3_exchange_report(dest_enclave_id, &status, src_enclave_id, dh_msg2, dh_msg3, session_id);
-			break;
+		// case 3:
+		// 	ret = Enclave3_exchange_report(dest_enclave_id, &status, src_enclave_id, dh_msg2, dh_msg3, session_id);
+		// 	break;
 	}
 	if (ret == SGX_SUCCESS)
 		return (ATTESTATION_STATUS)status;
@@ -136,9 +136,9 @@ ATTESTATION_STATUS send_request_ocall(sgx_enclave_id_t src_enclave_id, sgx_encla
 		case 2:
 			ret = Enclave2_generate_response(dest_enclave_id, &status, src_enclave_id, req_message, req_message_size, max_payload_size, resp_message, resp_message_size);
 			break;
-		case 3:
-			ret = Enclave3_generate_response(dest_enclave_id, &status, src_enclave_id, req_message, req_message_size, max_payload_size, resp_message, resp_message_size);
-			break;
+		// case 3:
+		// 	ret = Enclave3_generate_response(dest_enclave_id, &status, src_enclave_id, req_message, req_message_size, max_payload_size, resp_message, resp_message_size);
+		// 	break;
 	}
 	if (ret == SGX_SUCCESS)
 		return (ATTESTATION_STATUS)status;
@@ -172,9 +172,9 @@ ATTESTATION_STATUS end_session_ocall(sgx_enclave_id_t src_enclave_id, sgx_enclav
 		case 2:
 			ret = Enclave2_end_session(dest_enclave_id, &status, src_enclave_id);
 			break;
-		case 3:
-			ret = Enclave3_end_session(dest_enclave_id, &status, src_enclave_id);
-			break;
+		// case 3:
+		// 	ret = Enclave3_end_session(dest_enclave_id, &status, src_enclave_id);
+		// 	break;
 	}
 	if (ret == SGX_SUCCESS)
 		return (ATTESTATION_STATUS)status;

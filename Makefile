@@ -120,7 +120,6 @@ App_Name := app
 
 Enclave1_Version_Script := Enclave1/Enclave1.lds
 Enclave2_Version_Script := Enclave2/Enclave2.lds
-Enclave3_Version_Script := Enclave3/Enclave3.lds
 
 ifneq ($(SGX_MODE), HW)
 	Trts_Library_Name := sgx_trts_sim
@@ -133,7 +132,6 @@ Crypto_Library_Name := sgx_tcrypto
 
 Enclave_Cpp_Files_1 := $(wildcard Enclave1/*.cpp)
 Enclave_Cpp_Files_2 := $(wildcard Enclave2/*.cpp)
-Enclave_Cpp_Files_3 := $(wildcard Enclave3/*.cpp)
 Enclave_Include_Paths := -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/libcxx -I./LocalAttestationCode -I./Include
 
 CC_BELOW_4_9 := $(shell expr "`$(CC) -dumpversion`" \< "4.9")
@@ -160,15 +158,13 @@ Common_Enclave_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib -
 	-Wl,--defsym,__ImageBase=0 -Wl,--gc-sections
 Enclave1_Link_Flags := $(Common_Enclave_Link_Flags) -Wl,--version-script=$(Enclave1_Version_Script)
 Enclave2_Link_Flags := $(Common_Enclave_Link_Flags) -Wl,--version-script=$(Enclave2_Version_Script)
-Enclave3_Link_Flags := $(Common_Enclave_Link_Flags) -Wl,--version-script=$(Enclave3_Version_Script)
+
 
 Enclave_Cpp_Objects_1 := $(Enclave_Cpp_Files_1:.cpp=.o)
 Enclave_Cpp_Objects_2 := $(Enclave_Cpp_Files_2:.cpp=.o)
-Enclave_Cpp_Objects_3 := $(Enclave_Cpp_Files_3:.cpp=.o)
 
 Enclave_Name_1 := libenclave1.so
 Enclave_Name_2 := libenclave2.so
-Enclave_Name_3 := libenclave3.so
 
 ifeq ($(SGX_MODE), HW)
 ifeq ($(SGX_DEBUG), 1)
@@ -189,17 +185,16 @@ endif
 endif
 
 ifeq ($(Build_Mode), HW_RELEASE)
-all: .config_$(Build_Mode)_$(SGX_ARCH) $(Trust_Lib_Name) $(UnTrustLib_Name) Enclave1.so Enclave2.so Enclave3.so $(App_Name)
+all: .config_$(Build_Mode)_$(SGX_ARCH) $(Trust_Lib_Name) $(UnTrustLib_Name) Enclave1.so Enclave2.so  $(App_Name)
 	@echo "The project has been built in release hardware mode."
-	@echo "Please sign the enclaves (Enclave1.so, Enclave2.so, Enclave3.so) first with your signing keys before you run the $(App_Name) to launch and access the enclave."
+	@echo "Please sign the enclaves (Enclave1.so, Enclave2.so ) first with your signing keys before you run the $(App_Name) to launch and access the enclave."
 	@echo "To sign the enclaves use the following commands:"
 	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <key1> -enclave Enclave1.so -out <$(Enclave_Name_1)> -config Enclave1/Enclave1.config.xml"
 	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <key2> -enclave Enclave2.so -out <$(Enclave_Name_2)> -config Enclave2/Enclave2.config.xml"
-	@echo "   $(SGX_ENCLAVE_SIGNER) sign -key <key3> -enclave Enclave3.so -out <$(Enclave_Name_3)> -config Enclave3/Enclave3.config.xml"
 	@echo "You can also sign the enclaves using an external signing tool."
 	@echo "To build the project in simulation mode set SGX_MODE=SIM. To build the project in prerelease mode set SGX_PRERELEASE=1 and SGX_MODE=HW."
 else
-all: .config_$(Build_Mode)_$(SGX_ARCH) $(Trust_Lib_Name) $(UnTrustLib_Name) $(Enclave_Name_1) $(Enclave_Name_2) $(Enclave_Name_3) $(App_Name)
+all: .config_$(Build_Mode)_$(SGX_ARCH) $(Trust_Lib_Name) $(UnTrustLib_Name) $(Enclave_Name_1) $(Enclave_Name_2) $(App_Name)
 ifeq ($(Build_Mode), HW_DEBUG)
 	@echo "The project has been built in debug hardware mode."
 else ifeq ($(Build_Mode), SIM_DEBUG)
@@ -214,7 +209,7 @@ endif
 endif
 
 .config_$(Build_Mode)_$(SGX_ARCH):
-	@rm -rf .config_* $(App_Name) *.so *.a App/*.o Enclave1/*.o Enclave1/*_t.* Enclave1/*_u.* Enclave2/*.o Enclave2/*_t.* Enclave2/*_u.* Enclave3/*.o Enclave3/*_t.* Enclave3/*_u.*              LocalAttestationCode/*.o Untrusted_LocalAttestation/*.o LocalAttestationCode/*_t.* 
+	@rm -rf .config_* $(App_Name) *.so *.a App/*.o Enclave1/*.o Enclave1/*_t.* Enclave1/*_u.* Enclave2/*.o Enclave2/*_t.* Enclave2/*_u.*             LocalAttestationCode/*.o Untrusted_LocalAttestation/*.o LocalAttestationCode/*_t.* 
 	@touch .config_$(Build_Mode)_$(SGX_ARCH)
 
 ######## Library Objects ########
@@ -260,19 +255,11 @@ App/Enclave2_u.o: Enclave2/Enclave2_u.c
 	@$(CC) $(App_Compile_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-Enclave3/Enclave3_u.c Enclave3/Enclave3_u.h: $(SGX_EDGER8R) Enclave3/Enclave3.edl
-	@cd Enclave3 && $(SGX_EDGER8R) --use-prefix --untrusted ../Enclave3/Enclave3.edl --search-path $(SGX_SDK)/include 
-	@echo "GEN  =>  $@"
-
-App/Enclave3_u.o: Enclave3/Enclave3_u.c
-	@$(CC) $(App_Compile_Flags) -c $< -o $@
-	@echo "CC   <=  $<"
-
-App/%.o: App/%.cpp Enclave1/Enclave1_u.h Enclave2/Enclave2_u.h Enclave3/Enclave3_u.h
+App/%.o: App/%.cpp Enclave1/Enclave1_u.h Enclave2/Enclave2_u.h 
 	@$(CXX) $(App_Compile_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): App/Enclave1_u.o App/Enclave2_u.o App/Enclave3_u.o $(App_Cpp_Objects) $(UnTrustLib_Name)
+$(App_Name): App/Enclave1_u.o App/Enclave2_u.o $(App_Cpp_Objects) $(UnTrustLib_Name)
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -319,28 +306,8 @@ $(Enclave_Name_2): Enclave2.so
 	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave2/Enclave2_private.pem -enclave Enclave2.so -out $@ -config Enclave2/Enclave2.config.xml
 	@echo "SIGN =>  $@"
 
-Enclave3/Enclave3_t.c: $(SGX_EDGER8R) Enclave3/Enclave3.edl
-	@cd Enclave3 && $(SGX_EDGER8R)  --use-prefix --trusted ../Enclave3/Enclave3.edl --search-path $(SGX_SDK)/include
-	@echo "GEN  =>  $@"
-
-Enclave3/Enclave3_t.o: Enclave3/Enclave3_t.c
-	@$(CC) $(Enclave_Compile_Flags) -c $< -o $@
-	@echo "CC   <=  $<"
-
-Enclave3/%.o: Enclave3/%.cpp
-	@$(CXX) -std=c++11 -nostdinc++ $(Enclave_Compile_Flags) -c $< -o $@
-	@echo "CXX  <=  $<"
-
-Enclave3.so: Enclave3/Enclave3_t.o $(Enclave_Cpp_Objects_3) $(Trust_Lib_Name)
-	@$(CXX) Enclave3/Enclave3_t.o $(Enclave_Cpp_Objects_3) -o $@ $(Enclave3_Link_Flags)
-	@echo "LINK =>  $@"
-
-$(Enclave_Name_3): Enclave3.so
-	@$(SGX_ENCLAVE_SIGNER) sign -key Enclave3/Enclave3_private.pem -enclave Enclave3.so -out $@ -config Enclave3/Enclave3.config.xml
-	@echo "SIGN =>  $@"
-
 ######## Clean ########
 .PHONY: clean
 
 clean:
-	@rm -rf .config_* $(App_Name) *.so *.a App/*.o Enclave1/*.o Enclave1/*_t.* Enclave1/*_u.* Enclave2/*.o Enclave2/*_t.* Enclave2/*_u.* Enclave3/*.o Enclave3/*_t.* Enclave3/*_u.* LocalAttestationCode/*.o Untrusted_LocalAttestation/*.o LocalAttestationCode/*_t.*
+	@rm -rf .config_* $(App_Name) *.so *.a App/*.o Enclave1/*.o Enclave1/*_t.* Enclave1/*_u.* Enclave2/*.o Enclave2/*_t.* Enclave2/*_u.*  LocalAttestationCode/*.o Untrusted_LocalAttestation/*.o LocalAttestationCode/*_t.*
