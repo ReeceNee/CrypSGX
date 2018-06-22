@@ -30,3 +30,21 @@
 *.exe
 *.out
 *.app
+
+# dynamic files in SGX
+Enclave1_t.c
+Enclave1_t.h
+Enclave1_u.c
+Enclave1_u.h
+
+Enclave2_t.c
+Enclave2_t.h
+Enclave2_u.c
+Enclave2_u.h
+
+LocalAttestationCode_t.c
+LocalAttestationCode_t.h
+
+.config_HW_DEBUG_x64
+
+app
