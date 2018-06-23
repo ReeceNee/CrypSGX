@@ -37,33 +37,53 @@
 #include "sgx_report.h"
 #include "sgx_attributes.h"
 
-#define NONCE_SIZE         16
-#define MAC_SIZE           16
+#define NONCE_SIZE 16
+#define MAC_SIZE 16
 
-#define MSG_BUF_LEN        sizeof(ec_pub_t)*2
-#define MSG_HASH_SZ        32
+#define MSG_BUF_LEN sizeof(ec_pub_t) * 2
+#define MSG_HASH_SZ 32
 
-#define KEY_LEN            33
+#define KEY_LEN 16
+#define CRPYTO_MSG_LEN 2049
 
 //Session information structure
 typedef struct _la_dh_session_t
 {
-    uint32_t  session_id; //Identifies the current session
-    uint32_t  status; //Indicates session is in progress, active or closed
-    union
-    {
+    uint32_t session_id; //Identifies the current session
+    uint32_t status;     //Indicates session is in progress, active or closed
+    union {
         struct
         {
-			sgx_dh_session_t dh_session;
-        }in_progress;
+            sgx_dh_session_t dh_session;
+        } in_progress;
 
         struct
         {
             sgx_key_128bit_t AEK; //Session Key
-            uint32_t counter; //Used to store Message Sequence Number
-        }active;
+            uint32_t counter;     //Used to store Message Sequence Number
+        } active;
     };
 } dh_session_t;
 
+// typdef struct _sgx_aes_data_struct
+// {
+//     const sgx_aes_gcm_128bit_key_t *p_key,
+//     const uint8_t *p_src,
+//     uint32_t src_len,
+//     uint8_t *p_dst,
+//     const uint8_t *p_iv,
+//     uint32_t iv_len=12,
+//     const uint8_t *p_aad=NULL,
+//     uint32_t aad_len=0,
+//     sgx_aes_gcm_128bit_tag_t p_out_mac[16],
+// }sgx_aes_parms;
+
+// typedef struct _aes_gcm_data_me
+// {
+//         uint32_t payload_size,
+//         uint8_t reserved[12],
+//         uint8_t payload_tag[SGX_SEAL_TAG_SIZE],
+//         uint8_t payload[],
+// } sgx_aes_gcm_data_me;
 
 #endif

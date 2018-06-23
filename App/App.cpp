@@ -38,6 +38,7 @@
 #include "sgx_urts.h"
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include <iostream>
 
 #define UNUSED(val) (void)(val)
 #define TCHAR char
@@ -55,7 +56,9 @@ sgx_enclave_id_t e2_enclave_id = 0;
 #define ENCLAVE2_PATH "libenclave2.so"
 
 //global vars
-char aes_key[KEY_LEN];
+uint8_t aes_key_now[KEY_LEN];
+char aes_plaintext[CRPYTO_MSG_LEN];
+char aes_ciphertext[CRPYTO_MSG_LEN];
 
 void waitForKeyPress()
 {
@@ -64,6 +67,7 @@ void waitForKeyPress()
     printf("\n\nHit a key....\n");
     temp = scanf_s("%c", &ch);
 }
+
 
 uint32_t load_enclaves()
 {
@@ -96,7 +100,7 @@ uint32_t load_enclaves()
 
 int show_menu()
 {
-    printf("\n************OPTIONS************\n");
+    printf("\n\n\n************OPTIONS************\n");
     printf("1.Set a new Key\n");
     printf("2.Encryption Test\n");
     printf("3.Decryption Test\n");
@@ -110,6 +114,15 @@ int show_menu()
     return tmp;
 }
 
+void randomKey()
+{
+    int i;
+    for (i = 0; i < KEY_LEN; i++)
+    {
+        aes_key_now[i] = (uint8_t)random();
+    }
+}
+
 bool set_new_aes_key()
 {
     uint32_t ret_status;
@@ -117,11 +130,11 @@ bool set_new_aes_key()
 
     bool runFlag = false;
 
-    char key_now[KEY_LEN] = "aaaaaaaabbbbbbbbccccccccdddddddd";
+    //random a key
+    randomKey();
 
-    strncpy(aes_key, key_now, KEY_LEN);
-    printf("The key is :%s\n", aes_key);
-    status = Enclave1_set_enclave_aes_key(e1_enclave_id, &ret_status, e1_enclave_id, e2_enclave_id, aes_key, KEY_LEN);
+    printf("The key is :%s\n", aes_key_now);
+    status = Enclave1_set_enclave_aes_key(e1_enclave_id, &ret_status, e1_enclave_id, e2_enclave_id, aes_key_now, KEY_LEN);
     if (status != SGX_SUCCESS)
     {
         printf("Enclave1_set_enclave_aes_key Ecall failed: Error code is %x", status);
@@ -131,6 +144,81 @@ bool set_new_aes_key()
         if (ret_status == 0)
         {
             printf("\n\nSet AES KEY from clent(Enclave 1) to Server(Enclave 2) successful !!!");
+            runFlag = true;
+        }
+        else
+        {
+            printf("\nSession establishment and key exchange failure between  clent(Enclave 1) and Server(Enclave 2): Error code is %x", ret_status);
+        }
+    }
+    return runFlag;
+}
+
+bool encrypto_test()
+{
+    uint32_t ret_status;
+    sgx_status_t status;
+    uint32_t msg_len;
+
+    bool runFlag = false;
+
+    printf("Please input the plaintext you want to encrypto: ");
+    scanf("%s", aes_plaintext);
+
+    printf("\n-----------------------\n");
+    printf("The key will be used in this turn is :%s\n", aes_key_now);
+    printf("The plaintext is :%s\n", aes_plaintext);
+
+    msg_len = strlen(aes_plaintext);
+
+    status = Enclave1_encrypto_test(e1_enclave_id, &ret_status, e1_enclave_id, e2_enclave_id, aes_plaintext, msg_len);
+    if (status != SGX_SUCCESS)
+    {
+        printf("Enclave1_encrypto_test Ecall failed: Error code is %x", status);
+    }
+    else
+    {
+        if (ret_status == 0)
+        {
+            printf("\n\nClient(Enclave 1) says: Encrypto_test in Server(Enclave 2) successful !!!");
+            runFlag = true;
+        }
+        else
+        {
+            printf("\nSession establishment and key exchange failure between  clent(Enclave 1) and Server(Enclave 2): Error code is %x", ret_status);
+        }
+    }
+    return runFlag;
+}
+
+
+bool decrypto_test()
+{
+    uint32_t ret_status;
+    sgx_status_t status;
+    uint32_t msg_len;
+
+    bool runFlag = false;
+
+    printf("Please input the ciphertext you want to decrypto: ");
+    scanf("%s", aes_ciphertext);
+
+    printf("\n-----------------------\n");
+    printf("The key will be used in this turn is :%s\n", aes_key_now);
+    printf("The ciphertext is :%s\n", aes_ciphertext);
+
+    msg_len = strlen(aes_ciphertext);
+
+    status = Enclave1_decrypto_test(e1_enclave_id, &ret_status, e1_enclave_id, e2_enclave_id, aes_plaintext, msg_len);
+    if (status != SGX_SUCCESS)
+    {
+        printf("Enclave1_decrypto_test Ecall failed: Error code is %x", status);
+    }
+    else
+    {
+        if (ret_status == 0)
+        {
+            printf("\n\nClient(Enclave 1) says: Decrypto_test in Server(Enclave 2) successful !!!");
             runFlag = true;
         }
         else
@@ -229,13 +317,16 @@ int _tmain(int argc, _TCHAR *argv[])
             {
             case 0:
                 runFlag = false;
-
+                break;
             case 1:
                 runFlag = set_new_aes_key();
+                break;
             case 2:
-                continue;
+                runFlag = encrypto_test();
+                break;
             case 3:
-                continue;
+                runFlag = decrypto_test();
+                break;
             default:
                 printf("Wrong choice!\n");
                 continue;

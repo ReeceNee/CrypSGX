@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "array": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "__tree": "cpp",
+        "iterator": "cpp",
+        "map": "cpp",
+        "memory": "cpp",
+        "string": "cpp",
+        "thread": "cpp"
+    }
+}

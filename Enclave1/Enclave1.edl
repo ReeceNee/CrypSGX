@@ -38,7 +38,9 @@ enclave {
             public uint32_t test_enclave_to_enclave_call(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
             public uint32_t test_message_exchange(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
             public uint32_t test_close_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-            public uint32_t set_enclave_aes_key(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id,[in, size=key_len]char* aes_key,uint32_t key_len);
+            public uint32_t set_enclave_aes_key(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, [in, size=key_len]uint8_t* aes_key,uint32_t key_len);
+            public uint32_t encrypto_test(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, [in, size=msg_len]char *msg, uint32_t msg_len);
+            public uint32_t decrypto_test(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, [in, size=msg_len]char *msg, uint32_t msg_len);
     };
 
 };

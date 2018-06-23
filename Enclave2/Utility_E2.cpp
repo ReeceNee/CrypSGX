@@ -210,7 +210,7 @@ uint32_t umarshal_message_exchange_response(char *out_buff, char **secret_respon
     return SUCCESS;
 }
 
-uint32_t unmarshal_input_parameters_e2_aes(char *buff, uint32_t buf_len, ms_in_msg_exchange_t *ms)
+uint32_t unmarshal_input_parameters_e2_aes(char *buff, uint32_t *buf_len, ms_in_msg_exchange_t *ms)
 {
     size_t len;
     if (!buff || !ms)
@@ -218,15 +218,16 @@ uint32_t unmarshal_input_parameters_e2_aes(char *buff, uint32_t buf_len, ms_in_m
 
     len = ms->inparam_buff_len;
 
-    if (len != buf_len)
-        return ATTESTATION_ERROR;
+    // if (len != buf_len)
+    //     return ATTESTATION_ERROR;
 
-    memcpy(buff, ms->inparam_buff, buf_len);
+    memcpy(buff, ms->inparam_buff, len);
+    *buf_len = len;
 
     return SUCCESS;
 }
 
-uint32_t marshal_retval_and_output_parameters_e2_aes(char **resp_buffer, size_t *resp_length, uint8_t *retval, size_t retval_len)
+uint32_t marshal_retval_and_output_parameters_e2_aes(char **resp_buffer, size_t *resp_length, char *retval, size_t retval_len)
 {
     ms_out_msg_exchange_t *ms;
     size_t ret_param_len, ms_len;

@@ -43,7 +43,9 @@
 
 std::map<sgx_enclave_id_t, dh_session_t> g_src_session_info_map;
 
-char aes_key_now[KEY_LEN];
+uint8_t aes_key_now[KEY_LEN];
+char aes_plaintext[CRPYTO_MSG_LEN];
+char aes_ciphertext[CRPYTO_MSG_LEN];
 
 static uint32_t e1_foo1_wrapper(ms_in_msg_exchange_t *ms, size_t param_lenth, char **resp_buffer, size_t *resp_length);
 
@@ -366,10 +368,10 @@ static uint32_t e1_foo1_wrapper(ms_in_msg_exchange_t *ms,
     return SUCCESS;
 }
 
-uint32_t set_enclave_aes_key(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, char *aes_key, uint32_t key_len)
+uint32_t set_enclave_aes_key(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, uint8_t *aes_key, uint32_t key_len)
 {
     // copy aes_key to global aes_key_now
-    strncpy(aes_key_now, aes_key, key_len);
+    memcpy(aes_key_now, aes_key, key_len);
 
     ATTESTATION_STATUS ke_status = SUCCESS;
     char *var1;
@@ -432,6 +434,210 @@ uint32_t set_enclave_aes_key(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t d
         SAFE_FREE(out_buff);
         return ke_status;
     }
+
+    SAFE_FREE(marshalled_inp_buff);
+    SAFE_FREE(out_buff);
+    SAFE_FREE(retval);
+    return SUCCESS;
+}
+
+uint32_t encrypto_test(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, char *msg, uint32_t msg_len)
+{
+    // copy msg in global aes_plaintext
+    strncpy(aes_plaintext, msg, msg_len);
+
+    ATTESTATION_STATUS ke_status = SUCCESS;
+    char *var1;
+    uint32_t var2;
+    uint32_t target_fn_id, msg_type;
+    char *marshalled_inp_buff;
+    size_t marshalled_inp_buff_len;
+    char *out_buff;
+    size_t out_buff_len;
+    dh_session_t *dest_session_info;
+    size_t max_out_buff_size;
+    char *retval;
+
+    var2 = msg_len;
+    var1 = (char *)malloc(var2);
+    if (!var1)
+        return MALLOC_ERROR;
+
+    memcpy(var1, msg, msg_len);
+    // func_id 2 for encrypto_test
+    target_fn_id = 2;
+    msg_type = ENCLAVE_TO_ENCLAVE_CALL;
+    max_out_buff_size = CRPYTO_MSG_LEN;
+
+    //Marshals the input parameters for calling function foo1 in Enclave2 into a input buffer
+    ke_status = marshal_input_parameters_e2_aes(target_fn_id, msg_type, (char *)var1, var2, &marshalled_inp_buff, &marshalled_inp_buff_len);
+    if (ke_status != SUCCESS)
+    {
+        return ke_status;
+    }
+
+    //Search the map for the session information associated with the destination enclave id of Enclave2 passed in
+    std::map<sgx_enclave_id_t, dh_session_t>::iterator it = g_src_session_info_map.find(dest_enclave_id);
+    if (it != g_src_session_info_map.end())
+    {
+        dest_session_info = &it->second;
+    }
+    else
+    {
+        SAFE_FREE(marshalled_inp_buff);
+        return INVALID_SESSION;
+    }
+
+    //Core Reference Code function
+    ke_status = send_request_receive_response(src_enclave_id, dest_enclave_id, dest_session_info, marshalled_inp_buff,
+                                              marshalled_inp_buff_len, max_out_buff_size, &out_buff, &out_buff_len);
+
+    if (ke_status != SUCCESS)
+    {
+        SAFE_FREE(marshalled_inp_buff);
+        SAFE_FREE(out_buff);
+        return ke_status;
+    }
+
+    //Un-marshal the return value and output parameters from foo1 of Enclave 2
+    ke_status = unmarshal_retval_and_output_parameters_e2_aes(out_buff, &retval);
+    if (ke_status != SUCCESS)
+    {
+        SAFE_FREE(marshalled_inp_buff);
+        SAFE_FREE(out_buff);
+        return ke_status;
+    }
+
+    //check return value here (retval)
+    sgx_status_t status;
+    const uint8_t *p_add;
+    uint32_t p_add_length;
+    char *inp_buff = NULL;
+    const sgx_aes_gcm_128bit_key_t *p_key;
+
+    sgx_aes_gcm_data_t message_aes_gcm_data;
+    p_add = (const uint8_t *)(" ");
+    p_add_length = 0;
+
+    inp_buff = aes_plaintext;
+    const uint32_t data2encrypt_length = (uint32_t)msg_len;
+    message_aes_gcm_data.payload_size = data2encrypt_length;
+    p_key = (const sgx_aes_gcm_128bit_key_t *)aes_key_now;
+    status = sgx_rijndael128GCM_encrypt(p_key, (uint8_t *)inp_buff, data2encrypt_length,
+                                        reinterpret_cast<uint8_t *>(&(message_aes_gcm_data.payload)),
+                                        message_aes_gcm_data.reserved,
+                                        sizeof(message_aes_gcm_data.reserved), p_add, p_add_length,
+                                        &message_aes_gcm_data.payload_tag);
+    if (SGX_SUCCESS != status)
+    {
+        // SAFE_FREE(message_aes_gcm_data);
+        return status;
+    }
+
+    char *rst_local = (char *)message_aes_gcm_data.payload;
+    int cmp_result = memcmp(rst_local, retval, message_aes_gcm_data.payload_size);
+
+    SAFE_FREE(marshalled_inp_buff);
+    SAFE_FREE(out_buff);
+    SAFE_FREE(retval);
+    return SUCCESS;
+}
+
+uint32_t decrypto_test(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, char *msg, uint32_t msg_len)
+{
+    // copy msg in global aes_ciphertext
+    strncpy(aes_ciphertext, msg, msg_len);
+
+    ATTESTATION_STATUS ke_status = SUCCESS;
+    char *var1;
+    uint32_t var2;
+    uint32_t target_fn_id, msg_type;
+    char *marshalled_inp_buff;
+    size_t marshalled_inp_buff_len;
+    char *out_buff;
+    size_t out_buff_len;
+    dh_session_t *dest_session_info;
+    size_t max_out_buff_size;
+    char *retval;
+
+    var2 = msg_len;
+    var1 = (char *)malloc(var2);
+    if (!var1)
+        return MALLOC_ERROR;
+
+    memcpy(var1, msg, msg_len);
+    // func_id 3 for decrypto_test
+    target_fn_id = 3;
+    msg_type = ENCLAVE_TO_ENCLAVE_CALL;
+    max_out_buff_size = CRPYTO_MSG_LEN;
+
+    //Marshals the input parameters for calling function foo1 in Enclave2 into a input buffer
+    ke_status = marshal_input_parameters_e2_aes(target_fn_id, msg_type, (char *)var1, var2, &marshalled_inp_buff, &marshalled_inp_buff_len);
+    if (ke_status != SUCCESS)
+    {
+        return ke_status;
+    }
+
+    //Search the map for the session information associated with the destination enclave id of Enclave2 passed in
+    std::map<sgx_enclave_id_t, dh_session_t>::iterator it = g_src_session_info_map.find(dest_enclave_id);
+    if (it != g_src_session_info_map.end())
+    {
+        dest_session_info = &it->second;
+    }
+    else
+    {
+        SAFE_FREE(marshalled_inp_buff);
+        return INVALID_SESSION;
+    }
+
+    //Core Reference Code function
+    ke_status = send_request_receive_response(src_enclave_id, dest_enclave_id, dest_session_info, marshalled_inp_buff,
+                                              marshalled_inp_buff_len, max_out_buff_size, &out_buff, &out_buff_len);
+
+    if (ke_status != SUCCESS)
+    {
+        SAFE_FREE(marshalled_inp_buff);
+        SAFE_FREE(out_buff);
+        return ke_status;
+    }
+
+    //Un-marshal the return value and output parameters from foo1 of Enclave 2
+    ke_status = unmarshal_retval_and_output_parameters_e2_aes(out_buff, &retval);
+    if (ke_status != SUCCESS)
+    {
+        SAFE_FREE(marshalled_inp_buff);
+        SAFE_FREE(out_buff);
+        return ke_status;
+    }
+
+    //check return value here (retval)
+    sgx_status_t status;
+    const uint8_t *p_add;
+    uint32_t p_add_length;
+    char *inp_buff = NULL;
+    const sgx_aes_gcm_128bit_key_t *p_key;
+
+    sgx_aes_gcm_data_t message_aes_gcm_data;
+    p_add = (const uint8_t *)(" ");
+    p_add_length = 0;
+
+    inp_buff = aes_ciphertext;
+    const uint32_t data2decrypt_length = (uint32_t)msg_len;
+    message_aes_gcm_data.payload_size = data2decrypt_length;
+    p_key = (const sgx_aes_gcm_128bit_key_t *)aes_key_now;
+    status = sgx_rijndael128GCM_decrypt(p_key, (uint8_t *)inp_buff, data2decrypt_length,
+                                        reinterpret_cast<uint8_t *>(&(message_aes_gcm_data.payload)),
+                                        message_aes_gcm_data.reserved,
+                                        sizeof(message_aes_gcm_data.reserved), p_add, p_add_length,
+                                        &message_aes_gcm_data.payload_tag);
+    if (SGX_SUCCESS != status)
+    {
+        // SAFE_FREE(message_aes_gcm_data);
+        return status;
+    }
+
+    char *rst_local = (char *)message_aes_gcm_data.payload;
+    int cmp_result = memcmp(rst_local, retval, message_aes_gcm_data.payload_size);
 
     SAFE_FREE(marshalled_inp_buff);
     SAFE_FREE(out_buff);

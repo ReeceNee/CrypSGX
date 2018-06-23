@@ -43,21 +43,27 @@
 
 std::map<sgx_enclave_id_t, dh_session_t> g_src_session_info_map;
 
-char aes_key_now[KEY_LEN];
+uint8_t aes_key_now[KEY_LEN];
+char aes_plaintext[CRPYTO_MSG_LEN];
+char aes_ciphertext[CRPYTO_MSG_LEN];
 
 static uint32_t e2_foo1_wrapper(ms_in_msg_exchange_t *ms, size_t param_lenth, char **resp_buffer, size_t *resp_length);
 static uint32_t e2_set_new_aes_key(ms_in_msg_exchange_t *ms, size_t param_lenth, char **resp_buffer, size_t *resp_length);
+static uint32_t e2_encrypto_test(ms_in_msg_exchange_t *ms, size_t param_lenth, char **resp_buffer, size_t *resp_length);
+static uint32_t e2_decrypto_test(ms_in_msg_exchange_t *ms, size_t param_lenth, char **resp_buffer, size_t *resp_length);
 
 //Function pointer table containing the list of functions that the enclave exposes
 const struct
 {
     size_t num_funcs;
-    const void *table[2];
+    const void *table[4];
 } func_table = {
-    2,
+    4,
     {
         (const void *)e2_foo1_wrapper,
         (const void *)e2_set_new_aes_key,
+        (const void *)e2_encrypto_test,
+        (const void *)e2_decrypto_test,
     }};
 
 //Makes use of the sample code function to establish a secure channel with the destination enclave
@@ -345,19 +351,121 @@ static uint32_t e2_set_new_aes_key(ms_in_msg_exchange_t *ms,
 {
     UNUSED(param_lenth);
 
-    uint32_t ret = 0;
+    char ret[15] = "SET KEY OK!\n";
+    uint32_t key_len;
     if (!ms || !resp_length)
     {
         return INVALID_PARAMETER_ERROR;
     }
-    if (unmarshal_input_parameters_e2_aes((char *)aes_key_now, KEY_LEN, ms) !=
+    if (unmarshal_input_parameters_e2_aes((char *)aes_key_now, &key_len, ms) !=
         SUCCESS)
         return ATTESTATION_ERROR;
 
-    ret = 1;
+    if (marshal_retval_and_output_parameters_e2_aes(
+            resp_buffer, resp_length, ret, 15) != SUCCESS)
+        return MALLOC_ERROR;
+
+    return SUCCESS;
+}
+
+static uint32_t e2_encrypto_test(ms_in_msg_exchange_t *ms,
+                                 size_t param_lenth,
+                                 char **resp_buffer,
+                                 size_t *resp_length)
+{
+    UNUSED(param_lenth);
+
+    // this is used to return aes_ciphertext
+    char *ret;
+    sgx_status_t status;
+    const uint8_t *p_add;
+    uint32_t p_add_length;
+    char *inp_buff = NULL;
+    uint32_t buff_len;
+    const sgx_aes_gcm_128bit_key_t *p_key;
+
+    sgx_aes_gcm_data_t message_aes_gcm_data;
+    p_add = (const uint8_t *)(" ");
+    p_add_length = 0;
+
+    if (!ms || !resp_length)
+    {
+        return INVALID_PARAMETER_ERROR;
+    }
+    if (unmarshal_input_parameters_e2_aes((char *)aes_plaintext, &buff_len, ms) !=
+        SUCCESS)
+        return ATTESTATION_ERROR;
+
+    inp_buff = aes_plaintext;
+    const uint32_t data2encrypt_length = (uint32_t)buff_len;
+    message_aes_gcm_data.payload_size = data2encrypt_length;
+    p_key = (const sgx_aes_gcm_128bit_key_t *)aes_key_now;
+    status = sgx_rijndael128GCM_encrypt(p_key, (uint8_t *)inp_buff, data2encrypt_length,
+                                        reinterpret_cast<uint8_t *>(&(message_aes_gcm_data.payload)),
+                                        message_aes_gcm_data.reserved,
+                                        sizeof(message_aes_gcm_data.reserved), p_add, p_add_length,
+                                        &message_aes_gcm_data.payload_tag);
+    if (SGX_SUCCESS != status)
+    {
+        // SAFE_FREE(message_aes_gcm_data);
+        return status;
+    }
+    ret = (char *)message_aes_gcm_data.payload;
 
     if (marshal_retval_and_output_parameters_e2_aes(
-            resp_buffer, resp_length, (uint8_t *)&ret, 4) != SUCCESS)
+            resp_buffer, resp_length, ret, message_aes_gcm_data.payload_size) != SUCCESS)
+        return MALLOC_ERROR;
+
+    return SUCCESS;
+}
+
+
+static uint32_t e2_decrypto_test(ms_in_msg_exchange_t *ms,
+                                 size_t param_lenth,
+                                 char **resp_buffer,
+                                 size_t *resp_length)
+{
+    UNUSED(param_lenth);
+
+    // this is used to return aes_ciphertext
+    char *ret;
+    sgx_status_t status;
+    const uint8_t *p_add;
+    uint32_t p_add_length;
+    char *inp_buff = NULL;
+    uint32_t buff_len;
+    const sgx_aes_gcm_128bit_key_t *p_key;
+
+    sgx_aes_gcm_data_t message_aes_gcm_data;
+    p_add = (const uint8_t *)(" ");
+    p_add_length = 0;
+
+    if (!ms || !resp_length)
+    {
+        return INVALID_PARAMETER_ERROR;
+    }
+    if (unmarshal_input_parameters_e2_aes((char *)aes_ciphertext, &buff_len, ms) !=
+        SUCCESS)
+        return ATTESTATION_ERROR;
+
+    inp_buff = aes_ciphertext;
+    const uint32_t data2decrypt_length = (uint32_t)buff_len;
+    message_aes_gcm_data.payload_size = data2decrypt_length;
+    p_key = (const sgx_aes_gcm_128bit_key_t *)aes_key_now;
+    status = sgx_rijndael128GCM_decrypt(p_key, (uint8_t *)inp_buff, data2decrypt_length,
+                                        reinterpret_cast<uint8_t *>(&(message_aes_gcm_data.payload)),
+                                        message_aes_gcm_data.reserved,
+                                        sizeof(message_aes_gcm_data.reserved), p_add, p_add_length,
+                                        &message_aes_gcm_data.payload_tag);
+    if (SGX_SUCCESS != status)
+    {
+        // SAFE_FREE(message_aes_gcm_data);
+        return status;
+    }
+    ret = (char *)message_aes_gcm_data.payload;
+
+    if (marshal_retval_and_output_parameters_e2_aes(
+            resp_buffer, resp_length, ret, message_aes_gcm_data.payload_size) != SUCCESS)
         return MALLOC_ERROR;
 
     return SUCCESS;
