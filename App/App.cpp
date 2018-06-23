@@ -68,7 +68,6 @@ void waitForKeyPress()
     temp = scanf_s("%c", &ch);
 }
 
-
 uint32_t load_enclaves()
 {
     uint32_t enclave_temp_no;
@@ -166,7 +165,7 @@ bool encrypto_test()
     scanf("%s", aes_plaintext);
 
     printf("\n-----------------------\n");
-    printf("The key will be used in this turn is :%s\n", aes_key_now);
+    // printf("The key will be used in this turn is :%s\n", aes_key_now);
     printf("The plaintext is :%s\n", aes_plaintext);
 
     msg_len = strlen(aes_plaintext);
@@ -191,7 +190,6 @@ bool encrypto_test()
     return runFlag;
 }
 
-
 bool decrypto_test()
 {
     uint32_t ret_status;
@@ -200,14 +198,14 @@ bool decrypto_test()
 
     bool runFlag = false;
 
-    printf("Please input the ciphertext you want to decrypto: ");
-    scanf("%s", aes_ciphertext);
+    printf("Please input the plaintext you want to decrypto: ");
+    scanf("%s", aes_plaintext);
 
     printf("\n-----------------------\n");
-    printf("The key will be used in this turn is :%s\n", aes_key_now);
-    printf("The ciphertext is :%s\n", aes_ciphertext);
+    // printf("The key will be used in this turn is :%s\n", aes_key_now);
+    printf("The plaintext is :%s\n", aes_plaintext);
 
-    msg_len = strlen(aes_ciphertext);
+    msg_len = strlen(aes_plaintext);
 
     status = Enclave1_decrypto_test(e1_enclave_id, &ret_status, e1_enclave_id, e2_enclave_id, aes_plaintext, msg_len);
     if (status != SGX_SUCCESS)
