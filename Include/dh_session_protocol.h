@@ -43,6 +43,7 @@
 #define MSG_BUF_LEN        sizeof(ec_pub_t)*2
 #define MSG_HASH_SZ        32
 
+#define KEY_LEN            33
 
 //Session information structure
 typedef struct _la_dh_session_t

@@ -27,3 +27,8 @@ How to Build/Execute the Sample Code
 4. Execute the binary directly:
     $ ./app
 5. Remember to "make clean" before switching build mode
+
+
+Roles:
+- Enclave1 as client
+- Enclave2 as server
