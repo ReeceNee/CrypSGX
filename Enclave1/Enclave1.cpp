@@ -566,8 +566,7 @@ uint32_t decrypto_test(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_en
         return MALLOC_ERROR;
 
     memcpy(var1, msg, msg_len);
-    // func_id 3 for decrypto_test
-    target_fn_id = 3;
+    target_fn_id = 2;
     msg_type = ENCLAVE_TO_ENCLAVE_CALL;
     max_out_buff_size = CRPYTO_MSG_LEN;
 
@@ -625,7 +624,7 @@ uint32_t decrypto_test(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_en
     const uint32_t data2decrypt_length = (uint32_t)msg_len;
     message_aes_gcm_data.payload_size = data2decrypt_length;
     p_key = (const sgx_aes_gcm_128bit_key_t *)aes_key_now;
-    status = sgx_rijndael128GCM_decrypt(p_key, (uint8_t *)inp_buff, data2decrypt_length,
+    status = sgx_rijndael128GCM_encrypt(p_key, (uint8_t *)inp_buff, data2decrypt_length,
                                         reinterpret_cast<uint8_t *>(&(message_aes_gcm_data.payload)),
                                         message_aes_gcm_data.reserved,
                                         sizeof(message_aes_gcm_data.reserved), p_add, p_add_length,
